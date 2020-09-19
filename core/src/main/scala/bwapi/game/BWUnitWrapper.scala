@@ -5,7 +5,7 @@ import cats.effect.IO
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto.autoUnwrap
 
-import scala.jdk.CollectionConverters.ListHasAsScala
+import collection.JavaConverters._
 
 final case class BWUnitWrapper(private[game] val receiver: bwapi.Unit) {
   def unitType(): UnitType = receiver.getType

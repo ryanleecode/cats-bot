@@ -1,9 +1,10 @@
 package bot.lifecycle
 
-/*
-final case class BaseDistance(origin: Position, base: bwem.Base) {
-  def distance(): Double = base.
+import bwapi.Position
+import bwem.Base
 
-  def ++(other: bwem.Base): Base = {}
+final case class BaseDistance(origin: Position, base: bwem.Base) {
+  // def distance(): Double = base.
+
+  //def ++(other: bwem.Base): Base = {}
 }
- */

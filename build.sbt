@@ -1,7 +1,7 @@
 ThisBuild / name := "cats-bot"
 ThisBuild / organization := "bot"
 ThisBuild / version := "0.1"
-ThisBuild / scalaVersion := "2.13.1"
+ThisBuild / scalaVersion := "2.13.3"
 
 lazy val root = (project in file("."))
   .aggregate(refined, core)
@@ -13,7 +13,7 @@ lazy val core = (project in file("core"))
   .dependsOn(refined)
 
 lazy val commonDependencies = Seq(
-  "com.github.JavaBWAPI"        % "JBWAPI"          % "1.6" from "file:/home/drd/Documents/Repositories/JBWAPI/target/jbwapi-1.5.1-jar-with-dependencies.jar",
+  "com.github.JavaBWAPI"        % "JBWAPI"          % "1.5" from "file:/home/drd/Documents/Repositories/JBWAPI/target/jbwapi-1.5.1-jar-with-dependencies.jar",
   "org.typelevel"              %% "cats-core"       % "2.0.0",
   "org.slf4j"                   % "slf4j-api"       % "1.7.25",
   "ch.qos.logback"              % "logback-classic" % "1.2.3",
@@ -27,7 +27,9 @@ lazy val commonDependencies = Seq(
   "eu.timepit"                 %% "refined"         % "0.9.15",
   "eu.timepit"                 %% "refined-cats"    % "0.9.15",
   "eu.timepit"                 %% "refined-eval"    % "0.9.15",
-  "org.typelevel"              %% "mouse"           % "0.25"
+  "org.typelevel"              %% "mouse"           % "0.25",
+  "org.scalanlp"               %% "breeze"          % "1.1",
+  "com.spotify"                %% "featran-core"    % "0.6.0"
 )
 
 /*
@@ -42,6 +44,12 @@ lazy val dependencies = new {
 
 lazy val settings = commonSettings
 
-lazy val compilerOptions = Seq("-language:higherKinds", "-Ymacro-annotations")
+lazy val compilerOptions = Seq("-language:higherKinds")
 
-lazy val commonSettings = Seq(scalacOptions ++= compilerOptions, resolvers ++= Seq("jitPack" at "https://jitpack.io"))
+lazy val commonSettings = Seq(
+  scalacOptions ++= compilerOptions,
+  resolvers ++= Seq(
+    "jitPack" at "https://jitpack.io",
+    "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
+  )
+)

@@ -4,7 +4,7 @@ import bwapi.{Color, CoordinateType, Flag, Position, Text, TilePosition, UnitFil
 import cats.effect.IO
 import eu.timepit.refined.api.Refined
 
-import scala.jdk.CollectionConverters.ListHasAsScala
+import collection.JavaConverters._
 
 final case class GameWrapper(receiver: bwapi.Game) {
   def self: PlayerWrapper = PlayerWrapper(receiver.self())

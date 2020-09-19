@@ -1,4 +1,4 @@
-ROOT_CP="/home/drd/Documents/Projects/cats-bot/target/scala-2.13/classes"
+ROOT_CP="/home/drd/Documents/Projects/cats-bot/target/scala-2.12/classes"
 
 PROJECT_CP=""
 for d in $(find $ROOT_CP -maxdepth 10 -type d)

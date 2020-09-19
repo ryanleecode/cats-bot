@@ -2,7 +2,7 @@ package bwapi.game
 
 import bwapi.{Race, TilePosition, UnitType}
 
-import scala.jdk.CollectionConverters.ListHasAsScala
+import collection.JavaConverters._
 
 final case class PlayerWrapper(receiver: bwapi.Player) {
   def startLocation(): TilePosition = receiver.getStartLocation

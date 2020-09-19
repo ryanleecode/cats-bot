@@ -17,10 +17,20 @@ import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import monocle.macros.GenLens
 import org.apache.commons.math3.stat.descriptive.summary
 import cats.implicits._
+import com.spotify.featran.FeatureSpec
+import com.spotify.featran.transformers.MinMaxScaler
 import eu.timepit.refined.api.Refined
+import org.apache.commons.math3.distribution.NormalDistribution
+import org.apache.commons.math3.distribution.RealDistribution
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics
 import mouse.all._
+import com.spotify.featran._
+import com.spotify.featran.transformers._
+import breeze.linalg._
 
 import scala.jdk.CollectionConverters.ListHasAsScala
+
+case class Heuristic1(distanceToMineralField: Option[Double], distanceToSupplyDepot: Option[Double])
 
 final class Listener() extends DefaultBWListener {
   private def logger[F[_]: Sync]: SelfAwareStructuredLogger[F] =
@@ -91,7 +101,56 @@ final class Listener() extends DefaultBWListener {
 
         game.drawCircleMap(startingBase.getCenter, 3, Color.Red).unsafeRunSync()
 
-        val furthestMineral = NonEmptyList
+        val preferredTile = for {
+          buildingType <- refineV[Building](UnitType.Terran_Supply_Depot).toOption
+          buildableTiles <- NonEmptyList.fromList(
+            Surveyor
+              .findPlacement(startingArea, buildingType)
+              .toList
+          )
+          data =
+            buildableTiles
+              .map({ tilePosition =>
+                val distanceToMineralField = game
+                  .getClosestUnit(tilePosition.toPosition, UnitFilter.IsMineralField)
+                  .map({ closestMineralField => -tilePosition.getDistance(closestMineralField.getTilePosition) })
+
+                val distanceToSupplyDepot = game
+                  .getClosestUnit(tilePosition.toPosition, (u: bwapi.Unit) => u.getType == UnitType.Terran_Supply_Depot)
+                  .map({ supplyDepot => -tilePosition.getDistance(supplyDepot.getTilePosition) })
+
+                Heuristic1(distanceToMineralField, distanceToSupplyDepot)
+              })
+              .toIterable
+          fs =
+            FeatureSpec
+              .of[Heuristic1]
+              .optional(_.distanceToMineralField, Some(0.0))(MinMaxScaler("min-max"))
+              .optional(_.distanceToSupplyDepot, Some(0.0))(MinMaxScaler("min-max"))
+          fe       = fs.extract(data)
+          names    = fe.featureNames
+          weights  = Array(0.25, 0.75)
+          features = fe.featureValues[Array[Double]]
+          product  = new summary.Product()
+          xd =
+            buildableTiles.toIterable
+              .zip(
+                features
+                  .map({ feature =>
+                    val product = new summary.Product()
+                    product.evaluate(feature, weights)
+                  })
+              )
+              .reduce({ (a, b) =>
+                val (_, s1) = a
+                val (_, s2) = b
+                if (s1 > s2) a else b
+              })
+              ._1
+        } yield xd
+
+        // println(df)
+        /*        val furthestMineral = NonEmptyList
           .fromList(startingBase.getMinerals.asScala.toList)
           .map({ minerals =>
             minerals.foldLeft(minerals.head)({ (a, b) =>
@@ -172,15 +231,15 @@ final class Listener() extends DefaultBWListener {
               }
             }
           )
-        })
+        })*/
 
-        furthestMineral.map({ min =>
+        /*        furthestMineral.map({ min =>
           game.drawCircleMap(min.getCenter, 3, Color.Orange).unsafeRunSync()
-        })
+        })*/
 
         // val all2x2Tiles = Surveyor.findTilesInAreaMatchingShape()
 
-        anchorDepot.map({ pos =>
+        /*        anchorDepot.map({ pos =>
           game
             .drawBoxMap(
               new TilePosition(pos.x, pos.y).toPosition,
@@ -188,7 +247,8 @@ final class Listener() extends DefaultBWListener {
               Color.Purple
             )
             .unsafeRunSync()
-        })
+        })*/
+        /*
 
         val preferredTile =
           for {
@@ -203,29 +263,83 @@ final class Listener() extends DefaultBWListener {
                 .drawBoxMap(tile.toPosition, tile.add(buildingType.value.tileSize()).toPosition, Color.Teal)
                 .unsafeRunSync()
             })
-            scoredTiles =
-              buildableTiles
+            _ <- for {
+              tileDistances <-
+                buildableTiles
+                  .map({ tile =>
+                    for {
+                      closestMineralField <- game.getClosestUnit(tile.toPosition, UnitFilter.IsMineralField)
+                      distanceToMineralField = tile.getDistance(closestMineralField.getTilePosition)
+                    } yield (tile, distanceToMineralField)
+                  })
+                  .sequence
+              minDistance =
+                tileDistances
+                  .minimumBy({ t =>
+                    val (_, distance) = t
+                    distance
+                  })
+                  ._2
+              maxDistance =
+                tileDistances
+                  .maximumBy({ t =>
+                    val (_, distance) = t
+                    distance
+                  })
+                  ._2
+            } yield tileDistances
+            squid = {
+              val derp = buildableTiles
                 .map({ tile =>
-                  val closestMineral = game.getClosestUnit(tile.toPosition, UnitFilter.IsMineralField)
-                  val closestDepot =
-                    game.getClosestUnit(tile.toPosition, (u: bwapi.Unit) => u.getType == UnitType.Terran_Supply_Depot)
-
-                  val mineralDistance = closestMineral
-                    .map(_.getTilePosition)
-                    .map(tile.getDistance)
-                  val supplyDepotDistance = closestDepot.map(_.getTilePosition).map(tile.getDistance)
-
-                  (tile, Array(mineralDistance, supplyDepotDistance), Array(0.25, 0.75))
+                  for {
+                    closestMineralField <- game.getClosestUnit(tile.toPosition, UnitFilter.IsMineralField)
+                    distanceToMineralField = tile.getDistance(closestMineralField.getTilePosition)
+                  } yield (tile, distanceToMineralField)
                 })
-                .map({ a =>
-                  val (tile, inputs, weights) = a
-                  val product                 = new summary.Product()
+                .sequence
 
-                  (tile, product.evaluate(inputs.map({ o => o.getOrElse(0) }), weights))
+              val metrics = buildableTiles.map({ tile =>
+                val closestMineral = game.getClosestUnit(tile.toPosition, UnitFilter.IsMineralField)
+                val closestDepot =
+                  game.getClosestUnit(tile.toPosition, (u: bwapi.Unit) => u.getType == UnitType.Terran_Supply_Depot)
+
+                val mineralDistance = closestMineral
+                  .map(_.getTilePosition)
+                  .map(tile.getDistance)
+                val supplyDepotDistance = closestDepot.map(_.getTilePosition).map(tile.getDistance)
+
+                List(mineralDistance, supplyDepotDistance)
+              })
+
+              val xd = metrics.toList.transpose
+                .map({ poo =>
+                  val inputsZ: List[Double] = poo.map({ o => o.getOrElse(0) })
+                  val ds                    = new DescriptiveStatistics(inputsZ.toArray)
+                  val variance              = ds.getPopulationVariance
+                  val sd                    = Math.sqrt(variance)
+                  val mean                  = ds.getMean
+
+                  val normalizedInput = (for {
+                    index <- 0 to inputsZ.size - 1
+                    x = 1 / inputsZ.get(index).get
+                  } yield x).toArray
+
+                  normalizedInput.toList
                 })
+                .transpose
+
+              val squid = for {
+                i <- 0 to xd.length - 1
+                val proudct                   = new summary.Product()
+                val metricasda: Array[Double] = xd.get(i).get.toArray
+                x                             = (buildableTiles.toList.get(i).get, proudct.evaluate(metricasda, Array(0.25, 0.75)))
+              } yield x
+
+              squid.toList
+            }
             preferredTile =
-              scoredTiles
-                .foldLeft(scoredTiles.head)((prev, current) => {
+              squid
+                .foldLeft(squid.head)((prev, current) => {
                   val (prevTile, prevScore)       = prev
                   val (currentTile, currentScore) = current
 
@@ -241,6 +355,7 @@ final class Listener() extends DefaultBWListener {
                 )
                 .unsafeRunSync()
           } yield preferredTile
+         */
 
         /*        val anchorDepot2 =
           NonEmptyList
@@ -279,13 +394,20 @@ final class Listener() extends DefaultBWListener {
 
         val worker = Workers(game.self.units) |> (_.headOption)
 
+        game
+          .drawBoxMap(
+            preferredTile.get.toPosition,
+            preferredTile.get.add(new TilePosition(3, 2)).toPosition,
+            Color.Cyan
+          )
+          .unsafeRunSync()
+
         if (
           game.self.supplyTotal() - game.self.supplyUsed() <= 2 && game.self
             .supplyTotal() <= 400
         ) {
-          val buildingType  = refineV[Building](UnitType.Terran_Supply_Depot).toOption.get
-          val buildLocation = game.getBuildLocation(buildingType, game.self.startLocation)
-          worker.map(b => Worker.build(buildingType, buildLocation)(b).unsafeRunSync())
+          val buildingType = refineV[Building](UnitType.Terran_Supply_Depot).toOption.get
+          worker.map(b => Worker.build(buildingType, preferredTile.get)(b).unsafeRunSync())
 
         }
       }

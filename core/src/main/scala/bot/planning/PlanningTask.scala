@@ -62,7 +62,7 @@ case object CompoundTask {
     override val subtasks = List(
       BuildUnitsWithCompletion(UnitType.Terran_SCV, 9),
       BuildUnits(UnitType.Terran_Supply_Depot),
-      BuildUnitsWithCompletion(UnitType.Terran_SCV, 40)
+      BuildUnitsWithCompletion(UnitType.Terran_SCV, 200)
     )
   }
 
