@@ -27,6 +27,12 @@ import mouse.all._
 import com.spotify.featran._
 import com.spotify.featran.transformers._
 import breeze.linalg._
+import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.auto._
+import eu.timepit.refined.numeric._
+import breeze.linalg._
+import breeze.numerics.pow
 
 import scala.jdk.CollectionConverters.ListHasAsScala
 
@@ -108,48 +114,86 @@ final class Listener() extends DefaultBWListener {
               .findPlacement(startingArea, buildingType)
               .toList
           )
-          data =
+          mat = DenseMatrix(
             buildableTiles
               .map({ tilePosition =>
                 val distanceToMineralField = game
                   .getClosestUnit(tilePosition.toPosition, UnitFilter.IsMineralField)
-                  .map({ closestMineralField => -tilePosition.getDistance(closestMineralField.getTilePosition) })
+                  .map({ closestMineralField => tilePosition.getDistance(closestMineralField.getTilePosition) })
+                  .getOrElse(Double.NaN)
 
                 val distanceToSupplyDepot = game
                   .getClosestUnit(tilePosition.toPosition, (u: bwapi.Unit) => u.getType == UnitType.Terran_Supply_Depot)
-                  .map({ supplyDepot => -tilePosition.getDistance(supplyDepot.getTilePosition) })
+                  .map({ supplyDepot => tilePosition.getDistance(supplyDepot.getTilePosition) })
+                  .getOrElse(Double.NaN)
 
-                Heuristic1(distanceToMineralField, distanceToSupplyDepot)
+                Array(distanceToMineralField, distanceToSupplyDepot)
               })
-              .toIterable
-          fs =
+              .toList: _*
+          )
+          _  = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.25
+          _  = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.75
+          xd = mat.mapValues(v => if (v.isNaN) 1.0 else v)
+          yolo = xd(*, ::)
+            .map(_.reduce({ (e1, e2) =>
+              if (e1.isNaN && e2.isNaN) {
+                1.0
+              } else if (e1.isNaN) {
+                e2
+              } else if (e2.isNaN) {
+                e1
+              } else {
+                e1 * e2
+              }
+            }))
+          squid = buildableTiles.toList.zip(yolo.toArray.toList)
+
+          // _    = println(yolo)
+          // _ = data.
+          //  _ = println(data.toString())
+          /*         val matrix = DenseMatrix(0, 2).*/
+          /*   fs =
             FeatureSpec
-              .of[Heuristic1]
-              .optional(_.distanceToMineralField, Some(0.0))(MinMaxScaler("min-max"))
-              .optional(_.distanceToSupplyDepot, Some(0.0))(MinMaxScaler("min-max"))
+              .of[DenseVector[Double]]
+              .optional(_.distanceToMineralField)(MinMaxScaler("dist-min-field"))
+              .optional(_.distanceToSupplyDepot)(MinMaxScaler("supp-min-field"))
           fe       = fs.extract(data)
           names    = fe.featureNames
           weights  = Array(0.25, 0.75)
-          features = fe.featureValues[Array[Double]]
-          product  = new summary.Product()
-          xd =
-            buildableTiles.toIterable
-              .zip(
-                features
-                  .map({ feature =>
-                    val product = new summary.Product()
-                    product.evaluate(feature, weights)
-                  })
-              )
-              .reduce({ (a, b) =>
-                val (_, s1) = a
-                val (_, s2) = b
-                if (s1 > s2) a else b
-              })
-              ._1
-        } yield xd
+          features = fe.featureValues[DenseVector[Double]]*/
+        } yield squid
+          .reduce({ (a, b) =>
+            val (t1, s1) = a
+            val (t2, s2) = b
 
-        // println(df)
+            if (s1 > s2) a else b
+          })
+          ._1 /* buildableTiles.toIterable
+          .zip(
+            features
+              .map({ feature =>
+                val product = new summary.Product()
+                val (feature2, weights2) = feature
+                  .zip(weights)
+                  .filter({ (a) =>
+                    val (metric, _) = a
+                    metric != 0.0
+                  })
+                  .unzip
+                //      println(feature.toList.toString(), weights.toList.toString())
+                //      println(feature2.toList.toString(), weights2.toList.toString())
+
+                product.evaluate(feature2, weights2)
+              })
+          )
+          .reduce({ (a, b) =>
+            val (_, s1) = a
+            val (_, s2) = b
+
+            if (s1 > s2) a else b
+          })
+          ._1*/
+
         /*        val furthestMineral = NonEmptyList
           .fromList(startingBase.getMinerals.asScala.toList)
           .map({ minerals =>
@@ -466,7 +510,10 @@ final class Listener() extends DefaultBWListener {
     } yield ()
 
     task
-      .handleErrorWith({ err => logger[IO].error(err)("on frame failed") })
+      .handleErrorWith({ err =>
+        println(err)
+        logger[IO].error(err)("on frame failed")
+      })
       .unsafeRunSync()
   }
 
