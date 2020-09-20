@@ -44,6 +44,30 @@ final case class GameWrapper(receiver: bwapi.Game) {
 
   def getMinerals: List[bwapi.Unit] = receiver.getMinerals.asScala.toList
 
+  def getUnitsInRectangle(left: Int, top: Int, right: Int, bottom: Int): List[BWUnitWrapper] =
+    receiver.getUnitsInRectangle(left, top, right, bottom).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsInRectangle(left: Int, top: Int, right: Int, bottom: Int, pred: UnitFilter): List[BWUnitWrapper] =
+    receiver.getUnitsInRectangle(left, top, right, bottom, pred).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsInRectangle(leftTop: Position, rightBottom: Position): List[BWUnitWrapper] =
+    receiver.getUnitsInRectangle(leftTop, rightBottom).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsInRectangle(leftTop: Position, rightBottom: Position, pred: UnitFilter): List[BWUnitWrapper] =
+    receiver.getUnitsInRectangle(leftTop, rightBottom, pred).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsInRadius(x: Int, y: Int, radius: Int): List[BWUnitWrapper] =
+    receiver.getUnitsInRadius(x, y, radius).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsInRadius(x: Int, y: Int, radius: Int, pred: UnitFilter): List[BWUnitWrapper] =
+    receiver.getUnitsInRadius(x, y, radius, pred).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsInRadius(center: Position, radius: Int): List[BWUnitWrapper] =
+    receiver.getUnitsInRadius(center, radius).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsInRadius(center: Position, radius: Int, pred: UnitFilter): List[BWUnitWrapper] =
+    receiver.getUnitsInRadius(center, radius, pred).asScala.map(BWUnitWrapper).toList
+
   def getClosestUnit(center: Position): Option[BWUnitWrapper] =
     Option(receiver.getClosestUnit(center)).map(BWUnitWrapper)
 
