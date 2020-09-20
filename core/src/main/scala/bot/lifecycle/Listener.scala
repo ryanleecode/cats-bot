@@ -119,48 +119,129 @@ final class Listener() extends DefaultBWListener {
               .map({ tilePosition =>
                 val distanceToMineralField = game
                   .getClosestUnit(tilePosition.toPosition, UnitFilter.IsMineralField)
-                  .map({ closestMineralField => tilePosition.getDistance(closestMineralField.getTilePosition) })
+                  .map({ closestMineralField => tilePosition.getDistance(closestMineralField.tilePosition) })
                   .getOrElse(Double.NaN)
 
                 val distanceToSupplyDepot = game
                   .getClosestUnit(tilePosition.toPosition, (u: bwapi.Unit) => u.getType == UnitType.Terran_Supply_Depot)
-                  .map({ supplyDepot => tilePosition.getDistance(supplyDepot.getTilePosition) })
+                  .map({ supplyDepot => tilePosition.getDistance(supplyDepot.tilePosition) })
                   .getOrElse(Double.NaN)
 
-                Array(distanceToMineralField, distanceToSupplyDepot)
+                val supplyDepotToLeft = game
+                  .getUnitsOnTile(tilePosition.subtract(new TilePosition(UnitType.Terran_Supply_Depot.tileWidth(), 0)))
+                  .filter({ unit =>
+                    unit.unitType.isBuilding &&
+                    unit.unitType.tileWidth() == UnitType.Terran_Supply_Depot.tileWidth() && unit.unitType
+                      .tileHeight() == UnitType.Terran_Supply_Depot.tileHeight()
+                  })
+                  .headOption
+                  .fold(Double.NaN)(_ => 1.0)
+
+                val supplyDepotToRight = game
+                  .getUnitsOnTile(tilePosition.add(new TilePosition(UnitType.Terran_Supply_Depot.tileWidth(), 0)))
+                  .filter({ unit =>
+                    unit.unitType.isBuilding &&
+                    unit.unitType.tileWidth() == UnitType.Terran_Supply_Depot.tileWidth() && unit.unitType
+                      .tileHeight() == UnitType.Terran_Supply_Depot.tileHeight()
+                  })
+                  .headOption
+                  .fold(Double.NaN)(_ => 1.0)
+
+                val supplyDepotToBottom = game
+                  .getUnitsOnTile(tilePosition.add(new TilePosition(0, UnitType.Terran_Supply_Depot.tileHeight())))
+                  .filter({ unit =>
+                    unit.unitType.isBuilding &&
+                    unit.unitType.tileWidth() == UnitType.Terran_Supply_Depot.tileWidth() && unit.unitType
+                      .tileHeight() == UnitType.Terran_Supply_Depot.tileHeight()
+                  })
+                  .headOption
+                  .fold(Double.NaN)(_ => 1.0)
+
+                val supplyDepotToTop = game
+                  .getUnitsOnTile(tilePosition.subtract(new TilePosition(0, UnitType.Terran_Supply_Depot.tileHeight())))
+                  .filter({ unit =>
+                    unit.unitType.isBuilding &&
+                    unit.unitType.tileWidth() == UnitType.Terran_Supply_Depot.tileWidth() && unit.unitType
+                      .tileHeight() == UnitType.Terran_Supply_Depot.tileHeight()
+                  })
+                  .headOption
+                  .fold(Double.NaN)(_ => 1.0)
+
+                val supplyDepotToBottomRight = game
+                  .getUnitsOnTile(
+                    tilePosition.add(
+                      new TilePosition(
+                        UnitType.Terran_Supply_Depot.tileWidth(),
+                        UnitType.Terran_Supply_Depot.tileHeight()
+                      )
+                    )
+                  )
+                  .filter({ unit =>
+                    unit.unitType.isBuilding &&
+                    unit.unitType.tileWidth() == UnitType.Terran_Supply_Depot.tileWidth() && unit.unitType
+                      .tileHeight() == UnitType.Terran_Supply_Depot.tileHeight()
+                  })
+                  .headOption
+                  .fold(Double.NaN)(_ => 1.0)
+
+                val supplyDepotToTopRight = game
+                  .getUnitsOnTile(
+                    tilePosition
+                      .add(new TilePosition(UnitType.Terran_Supply_Depot.tileWidth(), 0))
+                      .subtract(new TilePosition(0, UnitType.Terran_Supply_Depot.tileHeight()))
+                  )
+                  .filter({ unit =>
+                    unit.unitType.isBuilding &&
+                    unit.unitType.tileWidth() == UnitType.Terran_Supply_Depot.tileWidth() && unit.unitType
+                      .tileHeight() == UnitType.Terran_Supply_Depot.tileHeight()
+                  })
+                  .headOption
+                  .fold(Double.NaN)(_ => 1.0)
+
+                val isAtEdgeOfMap =
+                  if (
+                    tilePosition.x == 0 || tilePosition.y == 0 || tilePosition.x + UnitType.Terran_Supply_Depot
+                      .tileWidth() == game.mapWidth || tilePosition.y + UnitType.Terran_Supply_Depot
+                      .tileHeight() == game.mapHeight
+                  ) 1.0
+                  else 0.0
+
+                /*    val distanceToCliff = Option(
+                  map
+                    .*/
+                // println(distanceToCliff)
+                /*    if (!supplyDepotToTopRight.isNaN) {
+                  println(supplyDepotToTopRight)
+                }*/
+
+                // println(supplyDepotToBottomRight, supplyDepotToTopRight)
+                Array(
+                  distanceToMineralField,
+                  // distanceToSupplyDepot,
+                  isAtEdgeOfMap,
+                  supplyDepotToLeft,
+                  supplyDepotToRight,
+                  supplyDepotToBottom,
+                  supplyDepotToTop,
+                  supplyDepotToBottomRight,
+                  supplyDepotToTopRight
+                )
               })
               .toList: _*
           )
-          _  = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.25
-          _  = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.75
+          _ = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.01
+          // _  = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.2
+          _  = mat(::, 1) := (mat(::, 1) /:/ max(mat(::, 1))) ^:^ 0.01
+          _  = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.01
+          _  = mat(::, 3) := (mat(::, 3) /:/ max(mat(::, 3))) ^:^ 0.01
+          _  = mat(::, 4) := (mat(::, 4) /:/ max(mat(::, 4))) ^:^ 0.01
+          _  = mat(::, 5) := (mat(::, 5) /:/ max(mat(::, 5))) ^:^ 0.01
+          _  = mat(::, 6) := (mat(::, 6) /:/ max(mat(::, 6))) ^:^ 0.01
+          _  = mat(::, 7) := (mat(::, 7) /:/ max(mat(::, 7))) ^:^ 0.93
           xd = mat.mapValues(v => if (v.isNaN) 1.0 else v)
           yolo = xd(*, ::)
-            .map(_.reduce({ (e1, e2) =>
-              if (e1.isNaN && e2.isNaN) {
-                1.0
-              } else if (e1.isNaN) {
-                e2
-              } else if (e2.isNaN) {
-                e1
-              } else {
-                e1 * e2
-              }
-            }))
+            .map(_.reduce({ (e1, e2) => e1 * e2 }))
           squid = buildableTiles.toList.zip(yolo.toArray.toList)
-
-          // _    = println(yolo)
-          // _ = data.
-          //  _ = println(data.toString())
-          /*         val matrix = DenseMatrix(0, 2).*/
-          /*   fs =
-            FeatureSpec
-              .of[DenseVector[Double]]
-              .optional(_.distanceToMineralField)(MinMaxScaler("dist-min-field"))
-              .optional(_.distanceToSupplyDepot)(MinMaxScaler("supp-min-field"))
-          fe       = fs.extract(data)
-          names    = fe.featureNames
-          weights  = Array(0.25, 0.75)
-          features = fe.featureValues[DenseVector[Double]]*/
         } yield squid
           .reduce({ (a, b) =>
             val (t1, s1) = a
@@ -168,273 +249,7 @@ final class Listener() extends DefaultBWListener {
 
             if (s1 > s2) a else b
           })
-          ._1 /* buildableTiles.toIterable
-          .zip(
-            features
-              .map({ feature =>
-                val product = new summary.Product()
-                val (feature2, weights2) = feature
-                  .zip(weights)
-                  .filter({ (a) =>
-                    val (metric, _) = a
-                    metric != 0.0
-                  })
-                  .unzip
-                //      println(feature.toList.toString(), weights.toList.toString())
-                //      println(feature2.toList.toString(), weights2.toList.toString())
-
-                product.evaluate(feature2, weights2)
-              })
-          )
-          .reduce({ (a, b) =>
-            val (_, s1) = a
-            val (_, s2) = b
-
-            if (s1 > s2) a else b
-          })
-          ._1*/
-
-        /*        val furthestMineral = NonEmptyList
-          .fromList(startingBase.getMinerals.asScala.toList)
-          .map({ minerals =>
-            minerals.foldLeft(minerals.head)({ (a, b) =>
-              val aPos = a.getCenter.toTilePosition.toPosition
-              val bPos = b.getCenter.toTilePosition.toPosition
-
-              if (
-                aPos.getDistance(startingBase.getCenter) >= bPos
-                  .getDistance(startingBase.getCenter)
-              ) {
-                a
-              } else {
-                b
-              }
-
-            })
-          })
-
-        for {
-          furthestMineral <-
-            NonEmptyList
-              .fromList(startingBase.getMinerals.asScala.toList)
-              .map({ minerals =>
-                minerals.foldLeft(minerals.head)({ (a, b) =>
-                  val aPos = a.getCenter.toTilePosition.toPosition
-                  val bPos = b.getCenter.toTilePosition.toPosition
-
-                  if (
-                    aPos.getDistance(startingBase.getCenter) >= bPos
-                      .getDistance(startingBase.getCenter)
-                  ) {
-                    a
-                  } else {
-                    b
-                  }
-
-                })
-              })
-        } yield none
-
-        val anchorDepot = furthestMineral.map({ mineral =>
-          map.breadthFirstSearch(
-            mineral.getCenter.toTilePosition,
-            new Pred[Tile, TilePosition]() {
-              override def test(tile: Tile, position: TilePosition): Boolean = {
-                val xd = for {
-                  x <- position.x to position.x + 2
-                  y <- position.y to position.y + 1
-                } yield new TilePosition(x, y)
-
-                val canBuild = xd.foldLeft(true)({ (canBuild, tilePosition) =>
-                  canBuild && game.isBuildable(tilePosition, true) /* && bwapi.game
-                .getUnitsOnTile(tilePosition)
-                .size() == 0*/
-                })
-
-                val yolo = position.toPosition.add(new Position(48, 32))
-
-                val squid = canBuild && yolo
-                  .getDistance(startingBase.getCenter) > mineral.getCenter
-                  .getDistance(startingBase.getCenter)
-                game.drawCircleMap(position.toPosition, 3, Color.Orange).unsafeRunSync()
-                if (squid) {}
-
-                squid
-              }
-            },
-            new Pred[Tile, TilePosition]() {
-              override def test(tile: Tile, position: TilePosition): Boolean = {
-                val yolo = position.toPosition.add(new Position(48, 32))
-                /*    println(
-                  position.getDistance(startingBase.getCenter.toTilePosition),
-                  mineral.getCenter.toTilePosition
-                    .getDistance(startingBase.getCenter.toTilePosition)
-                )*/
-
-                true
-              }
-            }
-          )
-        })*/
-
-        /*        furthestMineral.map({ min =>
-          game.drawCircleMap(min.getCenter, 3, Color.Orange).unsafeRunSync()
-        })*/
-
-        // val all2x2Tiles = Surveyor.findTilesInAreaMatchingShape()
-
-        /*        anchorDepot.map({ pos =>
-          game
-            .drawBoxMap(
-              new TilePosition(pos.x, pos.y).toPosition,
-              new TilePosition(pos.x + 3, pos.y + 2).toPosition,
-              Color.Purple
-            )
-            .unsafeRunSync()
-        })*/
-        /*
-
-        val preferredTile =
-          for {
-            buildingType <- refineV[Building](UnitType.Terran_Supply_Depot).toOption
-            buildableTiles <- NonEmptyList.fromList(
-              Surveyor
-                .findPlacement(startingArea, buildingType)
-                .toList
-            )
-            _ = buildableTiles.map({ tile =>
-              game
-                .drawBoxMap(tile.toPosition, tile.add(buildingType.value.tileSize()).toPosition, Color.Teal)
-                .unsafeRunSync()
-            })
-            _ <- for {
-              tileDistances <-
-                buildableTiles
-                  .map({ tile =>
-                    for {
-                      closestMineralField <- game.getClosestUnit(tile.toPosition, UnitFilter.IsMineralField)
-                      distanceToMineralField = tile.getDistance(closestMineralField.getTilePosition)
-                    } yield (tile, distanceToMineralField)
-                  })
-                  .sequence
-              minDistance =
-                tileDistances
-                  .minimumBy({ t =>
-                    val (_, distance) = t
-                    distance
-                  })
-                  ._2
-              maxDistance =
-                tileDistances
-                  .maximumBy({ t =>
-                    val (_, distance) = t
-                    distance
-                  })
-                  ._2
-            } yield tileDistances
-            squid = {
-              val derp = buildableTiles
-                .map({ tile =>
-                  for {
-                    closestMineralField <- game.getClosestUnit(tile.toPosition, UnitFilter.IsMineralField)
-                    distanceToMineralField = tile.getDistance(closestMineralField.getTilePosition)
-                  } yield (tile, distanceToMineralField)
-                })
-                .sequence
-
-              val metrics = buildableTiles.map({ tile =>
-                val closestMineral = game.getClosestUnit(tile.toPosition, UnitFilter.IsMineralField)
-                val closestDepot =
-                  game.getClosestUnit(tile.toPosition, (u: bwapi.Unit) => u.getType == UnitType.Terran_Supply_Depot)
-
-                val mineralDistance = closestMineral
-                  .map(_.getTilePosition)
-                  .map(tile.getDistance)
-                val supplyDepotDistance = closestDepot.map(_.getTilePosition).map(tile.getDistance)
-
-                List(mineralDistance, supplyDepotDistance)
-              })
-
-              val xd = metrics.toList.transpose
-                .map({ poo =>
-                  val inputsZ: List[Double] = poo.map({ o => o.getOrElse(0) })
-                  val ds                    = new DescriptiveStatistics(inputsZ.toArray)
-                  val variance              = ds.getPopulationVariance
-                  val sd                    = Math.sqrt(variance)
-                  val mean                  = ds.getMean
-
-                  val normalizedInput = (for {
-                    index <- 0 to inputsZ.size - 1
-                    x = 1 / inputsZ.get(index).get
-                  } yield x).toArray
-
-                  normalizedInput.toList
-                })
-                .transpose
-
-              val squid = for {
-                i <- 0 to xd.length - 1
-                val proudct                   = new summary.Product()
-                val metricasda: Array[Double] = xd.get(i).get.toArray
-                x                             = (buildableTiles.toList.get(i).get, proudct.evaluate(metricasda, Array(0.25, 0.75)))
-              } yield x
-
-              squid.toList
-            }
-            preferredTile =
-              squid
-                .foldLeft(squid.head)((prev, current) => {
-                  val (prevTile, prevScore)       = prev
-                  val (currentTile, currentScore) = current
-
-                  if (currentScore <= prevScore) current else prev
-                })
-                ._1
-            _ =
-              game
-                .drawBoxMap(
-                  preferredTile.toPosition,
-                  preferredTile.add(buildingType.value.tileSize()).toPosition,
-                  Color.Purple
-                )
-                .unsafeRunSync()
-          } yield preferredTile
-         */
-
-        /*        val anchorDepot2 =
-          NonEmptyList
-            .fromList(list.asScala.toList.filter({ tile =>
-              tile.toPosition
-                .getDistance(
-                  startingBase.getCenter
-                ) > furthestMineral.get.getCenter
-                .getDistance(startingBase.getCenter)
-            }))
-            .map({ tilez =>
-              tilez.foldLeft(tilez.head)({ (a, b) =>
-                val aPos = a.toPosition
-                val bPos = b.toPosition
-
-                if (
-                  aPos.getDistance(furthestMineral.get.getCenter) <= bPos
-                    .getDistance(furthestMineral.get.getCenter)
-                ) {
-                  a
-                } else {
-                  b
-                }
-
-              })
-            })
-
-        // println(anchorDepot2)
-        anchorDepot2.map({ min =>
-          bwapi.game.drawBoxMap(
-            min.toPosition,
-            min.add(new TilePosition(3, 2)).toPosition,
-            Color.Cyan
-          )
-        })*/
+          ._1
 
         val worker = Workers(game.self.units) |> (_.headOption)
 
@@ -454,6 +269,18 @@ final class Listener() extends DefaultBWListener {
           worker.map(b => Worker.build(buildingType, preferredTile.get)(b).unsafeRunSync())
 
         }
+
+        Workers(game.self.units).foreach({ worker =>
+          if (worker.isIdle) {
+            game
+              .getClosestUnit(worker.position, UnitFilter.IsMineralField)
+              .map({ mineralField =>
+                worker.returnCargo(true).unsafeRunSync()
+                worker.gather(mineralField, true).unsafeRunSync()
+              })
+          }
+
+        })
       }
 
       _ <- IO {

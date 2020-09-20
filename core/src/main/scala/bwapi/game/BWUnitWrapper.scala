@@ -1,16 +1,18 @@
 package bwapi.game
 
-import bwapi.{TilePosition, UnitType}
+import bwapi.{Position, TilePosition, UnitType}
 import cats.effect.IO
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.auto.autoUnwrap
 
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 final case class BWUnitWrapper(private[game] val receiver: bwapi.Unit) {
-  def unitType(): UnitType = receiver.getType
+  def unitType: UnitType = receiver.getType
 
-  def tilePosition(): TilePosition = receiver.getTilePosition
+  def tilePosition: TilePosition = receiver.getTilePosition
+
+  def position: Position = receiver.getPosition
+
+  def isIdle: Boolean = receiver.isIdle
 
   def getDistance(unit: BWUnitWrapper): Int = receiver.getDistance(unit.receiver)
 
@@ -25,4 +27,13 @@ final case class BWUnitWrapper(private[game] val receiver: bwapi.Unit) {
   def trainingQueue(): List[UnitType] = receiver.getTrainingQueue.asScala.toList
 
   def train(unitType: UnitType): IO[Unit] = IO { receiver.train(unitType) }
+
+  def gather(target: BWUnitWrapper): IO[Unit] = IO { receiver.gather(target.receiver) }
+
+  def gather(target: BWUnitWrapper, shiftQueueCommand: Boolean): IO[Unit] =
+    IO { receiver.gather(target.receiver, shiftQueueCommand) }
+
+  def returnCargo(): IO[Unit] = IO { receiver.returnCargo() }
+
+  def returnCargo(shiftQueueCommand: Boolean): IO[Unit] = IO { receiver.returnCargo(shiftQueueCommand) }
 }

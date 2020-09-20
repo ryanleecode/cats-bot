@@ -11,6 +11,10 @@ final case class GameWrapper(receiver: bwapi.Game) {
 
   def enemy: PlayerWrapper = PlayerWrapper(receiver.enemy())
 
+  def mapWidth: Int = receiver.mapWidth
+
+  def mapHeight: Int = receiver.mapHeight
+
   def enableFlag(flag: Flag): IO[Unit] = IO { receiver.enableFlag(flag) }
 
   def setLocalSpeed(speed: Int): IO[Unit] = IO { receiver.setLocalSpeed(speed) }
@@ -40,14 +44,14 @@ final case class GameWrapper(receiver: bwapi.Game) {
 
   def getMinerals: List[bwapi.Unit] = receiver.getMinerals.asScala.toList
 
-  def getClosestUnit(center: Position): Option[bwapi.Unit] =
-    Option(receiver.getClosestUnit(center))
+  def getClosestUnit(center: Position): Option[BWUnitWrapper] =
+    Option(receiver.getClosestUnit(center)).map(BWUnitWrapper)
 
-  def getClosestUnit(center: Position, pred: UnitFilter): Option[bwapi.Unit] =
-    Option(receiver.getClosestUnit(center, pred))
+  def getClosestUnit(center: Position, pred: UnitFilter): Option[BWUnitWrapper] =
+    Option(receiver.getClosestUnit(center, pred)).map(BWUnitWrapper)
 
-  def getClosestUnit(center: Position, radius: Int): Option[bwapi.Unit] =
-    Option(receiver.getClosestUnit(center, radius))
+  def getClosestUnit(center: Position, radius: Int): Option[BWUnitWrapper] =
+    Option(receiver.getClosestUnit(center, radius)).map(BWUnitWrapper)
 
   def getBuildLocation(buildingType: Refined[bwapi.UnitType, Building], desiredLocation: TilePosition) =
     receiver.getBuildLocation(buildingType.value, desiredLocation)
@@ -119,4 +123,13 @@ final case class GameWrapper(receiver: bwapi.Game) {
     IO {
       receiver.drawBoxMap(leftTop, rightBottom, color, isSolid)
     }
+
+  def getUnitsOnTile(tile: TilePosition): List[BWUnitWrapper] =
+    receiver.getUnitsOnTile(tile).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsOnTile(tileX: Int, tileY: Int): List[BWUnitWrapper] =
+    receiver.getUnitsOnTile(tileX, tileY).asScala.map(BWUnitWrapper).toList
+
+  def getUnitsOnTile(tileX: Int, tileY: Int, pred: UnitFilter): List[BWUnitWrapper] =
+    receiver.getUnitsOnTile(tileX, tileY, pred).asScala.map(BWUnitWrapper).toList
 }

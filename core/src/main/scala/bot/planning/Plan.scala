@@ -1,16 +1,16 @@
 package bot.planning
 
-import bot.planning.CompoundTask.TvPBuildOrder
+import bot.planning.CompoundTask.{TvPBuildOrder, TvZBuildOrder}
 import bot.planning.PrimitiveTask.DoNothing
 import bot.planning.interpreter.PlanSimulator
 import bot.state.WorldState
-import bwapi.game.{PlayerWrapper}
+import bwapi.game.PlayerWrapper
 import cats.data.NonEmptyList
 
 object Plan {
   def apply(worldState: WorldState, simulator: PlanSimulator): NonEmptyList[PrimitiveTask] = {
     implicit val _simulator = simulator
-    val planTree            = TvPBuildOrder()
+    val planTree            = TvZBuildOrder()
 
     NonEmptyList
       .fromList(handlePlanningTask(worldState, planTree)._2)
