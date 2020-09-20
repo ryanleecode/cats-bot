@@ -75,6 +75,7 @@ case object CompoundTask {
       BuildUnitsWithCompletion(UnitType.Terran_SCV, 9),
       BuildUnits(UnitType.Terran_Supply_Depot),
       BuildUnitsWithCompletion(UnitType.Terran_SCV, 200)
+      // BuildUnitsWithCompletion(UnitType.Terran_Supply_Depot, 200)
     )
   }
 

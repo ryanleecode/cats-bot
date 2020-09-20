@@ -158,14 +158,21 @@ final class Listener() extends DefaultBWListener {
                     .unsafeRunSync()
                 }
 
-                Array(distanceToMineralField, distanceToEdgeOfMap, borderingSupplyDepotsCount)
+                val distanceToChoke = startingArea.getChokePoints.asScala
+                  .map({ chokePoint =>
+                    chokePoint.getCenter.getDistance(tilePosition.toWalkPosition)
+                  })
+                  .min
+
+                Array(distanceToMineralField, distanceToEdgeOfMap, borderingSupplyDepotsCount, distanceToChoke)
               })
               .toList: _*
           )
           _ = mat :+= 1.0
-          _ = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.025
-          _ = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.075
-          _ = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.9
+          _ = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.20
+          _ = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.10
+          _ = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.16
+          _ = mat(::, 3) := (mat(::, 3) /:/ max(mat(::, 3))) ^:^ 0.50
           // _ = println(max(mat(::, 2)))
           // _  = mat(::, 1) := (mat(::, 1) /:/ max(mat(::, 1))) ^:^ 0.01
           /*          _  = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.01
@@ -187,7 +194,7 @@ final class Listener() extends DefaultBWListener {
           })
           ._1
 
-        val worker = Workers(game.self.units) |> (_.headOption)
+        val worker = Workers(game.self.units).slice(0, 3).filter({ worker => !worker.isConstructing }).headOption
 
         game
           .drawBoxMap(
@@ -206,8 +213,8 @@ final class Listener() extends DefaultBWListener {
           .unsafeRunSync()
 
         if (
-          game.self.supplyTotal() - game.self.supplyUsed() <= 2 && game.self
-            .supplyTotal() <= 400
+          /*  game.self.supplyTotal() - game.self.supplyUsed() <= 2 && */ game.self
+            .supplyTotal() < 400
         ) {
           val buildingType = refineV[Building](UnitType.Terran_Supply_Depot).toOption.get
           worker.map(b => Worker.build(buildingType, preferredTile.get)(b).unsafeRunSync())

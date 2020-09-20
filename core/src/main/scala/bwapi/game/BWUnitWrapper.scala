@@ -33,6 +33,12 @@ final case class BWUnitWrapper(private[game] val receiver: bwapi.Unit) {
   def gather(target: BWUnitWrapper, shiftQueueCommand: Boolean): IO[Unit] =
     IO { receiver.gather(target.receiver, shiftQueueCommand) }
 
+  def isGatheringMinerals = receiver.isGatheringMinerals
+
+  def isGatheringGas = receiver.isGatheringGas
+
+  def isConstructing = receiver.isConstructing
+
   def returnCargo(): IO[Unit] = IO { receiver.returnCargo() }
 
   def returnCargo(shiftQueueCommand: Boolean): IO[Unit] = IO { receiver.returnCargo(shiftQueueCommand) }
