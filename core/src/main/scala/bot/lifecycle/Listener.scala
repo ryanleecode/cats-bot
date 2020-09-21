@@ -118,10 +118,13 @@ final class Listener() extends DefaultBWListener {
           mat = DenseMatrix(
             buildableTiles
               .map({ tilePosition =>
-                val distanceToMineralField = game
-                  .getClosestUnit(tilePosition.toPosition, UnitFilter.IsMineralField)
-                  .map({ closestMineralField => tilePosition.getDistance(closestMineralField.tilePosition) })
-                  .getOrElse(Double.NaN)
+                val distanceToMineralField = math.pow(
+                  game
+                    .getClosestUnit(tilePosition.toPosition, UnitFilter.IsMineralField)
+                    .map({ closestMineralField => tilePosition.getDistance(closestMineralField.tilePosition) })
+                    .getOrElse(Double.NaN),
+                  2
+                )
 
                 val distanceToEdgeOfMap = List(
                   tilePosition.getDistance(new TilePosition(0, tilePosition.y)),
@@ -159,13 +162,16 @@ final class Listener() extends DefaultBWListener {
                     .unsafeRunSync()
                 }
 
-                val distanceToLargeBuildings = game
-                  .getClosestUnit(
-                    tilePosition.toPosition,
-                    (t: bwapi.Unit) => t.getType.tileSize() == UnitType.Terran_Command_Center.tileSize()
-                  )
-                  .map({ closestLargeBuilding => tilePosition.getDistance(closestLargeBuilding.tilePosition) })
-                  .getOrElse(Double.NaN)
+                val distanceToLargeBuildings = math.pow(
+                  game
+                    .getClosestUnit(
+                      tilePosition.toPosition,
+                      (t: bwapi.Unit) => t.getType.tileSize() == UnitType.Terran_Command_Center.tileSize()
+                    )
+                    .map({ closestLargeBuilding => tilePosition.getDistance(closestLargeBuilding.tilePosition) })
+                    .getOrElse(Double.NaN),
+                  1.5
+                )
 
                 val distanceToChoke = startingArea.getChokePoints.asScala
                   .map({ chokePoint =>
@@ -194,12 +200,12 @@ final class Listener() extends DefaultBWListener {
               .toList: _*
           )
           _ = mat :+= 1.0
-          _ = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.075
-          _ = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.025
-          _ = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.175
-          _ = mat(::, 3) := (mat(::, 3) /:/ max(mat(::, 3))) ^:^ 0.25
-          _ = mat(::, 4) := (mat(::, 4) /:/ max(mat(::, 4))) ^:^ 0.275
-          _ = mat(::, 5) := (mat(::, 5) /:/ max(mat(::, 5))) ^:^ 0.2
+          _ = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.15
+          _ = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.25
+          _ = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.3
+          _ = mat(::, 3) := (mat(::, 3) /:/ max(mat(::, 3))) ^:^ 0.5
+          _ = mat(::, 4) := (mat(::, 4) /:/ max(mat(::, 4))) ^:^ 0.1
+          _ = mat(::, 5) := (mat(::, 5) /:/ max(mat(::, 5))) ^:^ 0.05
           // _ = println(max(mat(::, 2)))
           // _  = mat(::, 1) := (mat(::, 1) /:/ max(mat(::, 1))) ^:^ 0.01
           /*          _  = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.01
