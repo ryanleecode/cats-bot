@@ -1,6 +1,7 @@
 package bot.lifecycle
 
 import bot.architecture.Surveyor
+import bot.geography.Geography
 import bot.planning.Plan
 import bot.planning.interpreter.{PlanInterpreter, PlanSimulator}
 import bot.state.WorldState
@@ -158,21 +159,47 @@ final class Listener() extends DefaultBWListener {
                     .unsafeRunSync()
                 }
 
+                val distanceToLargeBuildings = game
+                  .getClosestUnit(
+                    tilePosition.toPosition,
+                    (t: bwapi.Unit) => t.getType.tileSize() == UnitType.Terran_Command_Center.tileSize()
+                  )
+                  .map({ closestLargeBuilding => tilePosition.getDistance(closestLargeBuilding.tilePosition) })
+                  .getOrElse(Double.NaN)
+
                 val distanceToChoke = startingArea.getChokePoints.asScala
                   .map({ chokePoint =>
                     chokePoint.getCenter.getDistance(tilePosition.toWalkPosition)
                   })
                   .min
 
-                Array(distanceToMineralField, distanceToEdgeOfMap, borderingSupplyDepotsCount, distanceToChoke)
+                val distanceToCliff = Geography
+                  .bfs(
+                    tilePosition.add(UnitType.Terran_Supply_Depot.tileSize().divide(2)),
+                    (tile, position) => tile.getGroundHeight != map.getTile(tilePosition).getGroundHeight,
+                    (tile, position) => true
+                  )(map)
+                  .map({ position => math.pow(position.getDistance(tilePosition), 4) })
+                  .getOrElse(Double.NaN)
+
+                Array(
+                  distanceToMineralField,
+                  distanceToEdgeOfMap,
+                  borderingSupplyDepotsCount,
+                  distanceToChoke,
+                  distanceToLargeBuildings,
+                  distanceToCliff
+                )
               })
               .toList: _*
           )
           _ = mat :+= 1.0
-          _ = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.20
-          _ = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.10
-          _ = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.16
-          _ = mat(::, 3) := (mat(::, 3) /:/ max(mat(::, 3))) ^:^ 0.50
+          _ = mat(::, 0) := (min(mat(::, 0)) /:/ mat(::, 0)) ^:^ 0.075
+          _ = mat(::, 1) := (min(mat(::, 1)) /:/ mat(::, 1)) ^:^ 0.025
+          _ = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.175
+          _ = mat(::, 3) := (mat(::, 3) /:/ max(mat(::, 3))) ^:^ 0.25
+          _ = mat(::, 4) := (mat(::, 4) /:/ max(mat(::, 4))) ^:^ 0.275
+          _ = mat(::, 5) := (mat(::, 5) /:/ max(mat(::, 5))) ^:^ 0.2
           // _ = println(max(mat(::, 2)))
           // _  = mat(::, 1) := (mat(::, 1) /:/ max(mat(::, 1))) ^:^ 0.01
           /*          _  = mat(::, 2) := (mat(::, 2) /:/ max(mat(::, 2))) ^:^ 0.01
@@ -234,44 +261,6 @@ final class Listener() extends DefaultBWListener {
         })
       }
 
-      _ <- IO {
-        /*    val mainTile     = bwapi.game.self.getStartLocation
-        val mainPosition = new Position(mainTile).add(new Position(64, 48))
-        val mainArea     = map.getArea(mainTile)
-
-        bwapi.game.drawBox(
-          CoordinateType.Map,
-          mainTile.x * 32,
-          mainTile.y * 32,
-          (mainTile.x * 32) + (32 * 4),
-          (mainTile.y * 32) + (32 * 3),
-          Color.Blue
-        )
-
-        // Main Start Blocks
-        val race = bwapi.game.self.getRace
-
-        val start        = mainPosition
-        val tileStart    = new TilePosition(start)
-        val tileBest     = TilePosition.Invalid
-        val distanceBest = Double.MaxValue
-        val piecesBest   = List
-
-        for (i <- 10 to 1) {
-          for (j <- 10 to 1) {
-            for (x <- tileStart.x - 15 to tileStart.x + 15) {
-              for (y <- tileStart.y - 15 to tileStart.y + 15) {
-                val tile = new TilePosition(x, y)
-                val blockCenter =
-                  new Position(tile).add(new Position(i * 16, j * 16))
-                val dist           = blockCenter.getDistance(start)
-                val blockFacesLeft = blockCenter.x < mainPosition.x
-                val blockFacesUp   = blockCenter.y < mainPosition.y
-              }
-            }
-          }
-        }*/
-      }
       nextWorldState <- IO.pure(
         worldState.getOrElse(WorldState.initialState(game)) |> GenLens[WorldState](_.game)
           .set(game)
