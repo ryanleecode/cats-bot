@@ -5,7 +5,7 @@ import eu.timepit.refined.api.Refined
 import bwapi.game.{Building}
 
 object Surveyor {
-  def findPlacement[G, P, U](area: bwem.Area, unitType: Refined[bwapi.UnitType, Building])(implicit
+  def findPlacement(area: bwem.Area, unitType: Refined[bwapi.UnitType, Building])(implicit
     game: bwapi.game.GameWrapper
   ): Iterable[TilePosition] = {
     val topLeft         = area.getTopLeft

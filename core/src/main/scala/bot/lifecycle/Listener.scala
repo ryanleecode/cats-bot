@@ -1,6 +1,6 @@
 package bot.lifecycle
 
-import bot.architecture.Surveyor
+import bot.architecture.{Placement, Surveyor}
 import bot.geography.Geography
 import bot.planning.Plan
 import bot.planning.interpreter.{PlanInterpreter, PlanSimulator}
@@ -115,44 +115,24 @@ final class Listener() extends DefaultBWListener {
               .findPlacement(startingArea, buildingType)
               .toList
           )
+
+          // Great with discrete values that are contious
           mat = DenseMatrix(
             buildableTiles
               .map({ tilePosition =>
-                val distanceToMineralField = math.pow(
-                  game
-                    .getClosestUnit(tilePosition.toPosition, UnitFilter.IsMineralField)
-                    .map({ closestMineralField => tilePosition.getDistance(closestMineralField.tilePosition) })
-                    .getOrElse(Double.NaN),
-                  2
-                )
-
-                val distanceToEdgeOfMap = List(
-                  tilePosition.getDistance(new TilePosition(0, tilePosition.y)),
-                  tilePosition.getDistance(new TilePosition(tilePosition.x, 0)),
-                  tilePosition.getDistance(
-                    new TilePosition(
-                      game.mapWidth - UnitType.Terran_Supply_Depot
-                        .tileWidth(),
-                      tilePosition.y
-                    )
-                  ),
-                  tilePosition.getDistance(
-                    new TilePosition(
-                      tilePosition.x,
-                      game.mapHeight - UnitType.Terran_Supply_Depot
-                        .tileHeight()
-                    )
+                val distanceToMineralField =
+                  math.pow(
+                    Placement.distanceToNearestMineralField(tilePosition, UnitType.Terran_Supply_Depot.tileSize()),
+                    2
                   )
-                ).min
 
-                val borderingSupplyDepotsCount = game
-                  .getUnitsInRectangle(
-                    tilePosition.subtract(new TilePosition(1, 1)).toPosition,
-                    tilePosition.add(UnitType.Terran_Supply_Depot.tileSize().add(new TilePosition(1, 1))).toPosition
-                  )
-                  .count({ unit => unit.unitType == UnitType.Terran_Supply_Depot })
+                val distanceToEdgeOfMap =
+                  Placement.distanceToEdgeOfMap(tilePosition, UnitType.Terran_Supply_Depot.tileSize())
 
-                if (borderingSupplyDepotsCount >= 2) {
+                val borderingMediumBuildingsCount =
+                  Placement.mediumBuildingsInRectangleCount(tilePosition, UnitType.Terran_Supply_Depot.tileSize())
+
+                if (borderingMediumBuildingsCount >= 2) {
                   game
                     .drawBoxMap(
                       tilePosition.subtract(new TilePosition(1, 1)).toPosition,
@@ -162,22 +142,14 @@ final class Listener() extends DefaultBWListener {
                     .unsafeRunSync()
                 }
 
-                val distanceToLargeBuildings = math.pow(
-                  game
-                    .getClosestUnit(
-                      tilePosition.toPosition,
-                      (t: bwapi.Unit) => t.getType.tileSize() == UnitType.Terran_Command_Center.tileSize()
-                    )
-                    .map({ closestLargeBuilding => tilePosition.getDistance(closestLargeBuilding.tilePosition) })
-                    .getOrElse(Double.NaN),
-                  1.5
-                )
+                val distanceToClosestLargeBuilding =
+                  math.pow(
+                    Placement.distanceToClosestLargeBuilding(tilePosition, UnitType.Terran_Supply_Depot.tileSize()),
+                    1.5
+                  )
 
-                val distanceToChoke = startingArea.getChokePoints.asScala
-                  .map({ chokePoint =>
-                    chokePoint.getCenter.getDistance(tilePosition.toWalkPosition)
-                  })
-                  .min
+                val distanceToChoke = Placement
+                  .distanceToClosestChokepoint(tilePosition, UnitType.Terran_Supply_Depot.tileSize(), startingArea)
 
                 val distanceToCliff = Geography
                   .bfs(
@@ -191,9 +163,9 @@ final class Listener() extends DefaultBWListener {
                 Array(
                   distanceToMineralField,
                   distanceToEdgeOfMap,
-                  borderingSupplyDepotsCount,
+                  borderingMediumBuildingsCount,
                   distanceToChoke,
-                  distanceToLargeBuildings,
+                  distanceToClosestLargeBuilding,
                   distanceToCliff
                 )
               })
